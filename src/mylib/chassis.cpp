@@ -4,9 +4,6 @@
 
 namespace mylib {
 
-    /**
-     * @brief Constructor using member initializer lists for optimized startup.
-     */
     Chassis::Chassis(const ChassisConfig& config, 
                      const PIDConstants& drive_consts,
                      const PIDConstants& turn_consts)
@@ -15,7 +12,6 @@ namespace mylib {
           drive_pid(drive_consts),
           turn_pid(turn_consts) 
     {
-        // Allocate optional sensors only if valid ports are provided
         if (config.imu_port != 0) 
             imu = std::make_unique<pros::Imu>(config.imu_port);
         
@@ -27,13 +23,12 @@ namespace mylib {
         
         if (config.distance_sensor_port != 0) 
             distance_sensor = std::make_unique<pros::Distance>(config.distance_sensor_port);
+
+        odom = std::make_unique<Odometry>(100.0f, 100.0f, 50.8f, 36000.0f);
+        odom_task = std::make_unique<pros::Task>(odom_trampoline, this, "Odometry Task");
     }
 
-    /**
-     * @brief Configure teleop joystick response feel.
-     */
     void Chassis::set_joystick_curves(float curve_amount, int deadband_amount) {
-        // Manual range check for maximum compatibility
         if (curve_amount < 0.0f) curve_amount = 0.0f;
         if (curve_amount > 1.0f) curve_amount = 1.0f;
         
@@ -41,9 +36,6 @@ namespace mylib {
         active_deadband = deadband_amount;
     }
 
-    /**
-     * @brief Math helper to apply deadband and cubic polynomial curving.
-     */
     int Chassis::apply_filters(int input) {
         if (std::abs(input) < active_deadband) return 0;
 
@@ -53,9 +45,6 @@ namespace mylib {
         return static_cast<int>(std::round(curved_x * 127.0f));
     }
 
-    /**
-     * @brief Arcade drive with True Ratio Desaturation to maintain turning arcs.
-     */
     void Chassis::arcade(int throttle, int turn) {
         int f_throttle = apply_filters(throttle);
         int f_turn = apply_filters(turn);
@@ -63,7 +52,6 @@ namespace mylib {
         float left_p = static_cast<float>(f_throttle + f_turn);
         float right_p = static_cast<float>(f_throttle - f_turn);
 
-        // Desaturation logic: scale power down if it exceeds 127 while keeping the ratio
         float max_val = std::max(std::abs(left_p), std::abs(right_p));
         if (max_val > 127.0f) {
             float scale = 127.0f / max_val;
@@ -75,9 +63,29 @@ namespace mylib {
         right_motors.move(static_cast<int>(std::round(right_p)));
     }
 
-    // --- AUTONOMOUS STUBS ---
-    // These must exist so the project can build successfully.
+    void Chassis::odom_trampoline(void* context) {
+        static_cast<Chassis*>(context)->odom_loop();
+    }
+
+    void Chassis::odom_loop() {
+        while (true) {
+            float vert_ticks = vertical_encoder ? vertical_encoder->get_position() : 0.0f;
+            float horiz_ticks = horizontal_encoder ? horizontal_encoder->get_position() : 0.0f;
+            float heading_deg = imu ? imu->get_heading() : 0.0f;
+
+            odom->update(vert_ticks, horiz_ticks, heading_deg);
+
+            pros::delay(10);
+        }
+    }
+
     void Chassis::drive_distance(float target_inches) {}
     void Chassis::turn_to_angle(float target_degrees) {}
+
+    // --- NEW: Odometry Getter ---
+    Pose Chassis::get_pose() const {
+        // Return the global coordinates safely from the Odometry pointer
+        return odom->get_pose();
+    }
 
 } // namespace mylib
