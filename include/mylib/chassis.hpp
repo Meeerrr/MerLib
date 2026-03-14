@@ -1,5 +1,6 @@
 #pragma once
 #include "api.h"
+#include "mylib/odom.hpp" // The new Odometry library
 #include <vector>
 #include <cstdint>
 #include <memory>
@@ -48,10 +49,24 @@ namespace mylib {
         float active_curve = 0.0f;  
         int active_deadband = 5;   
 
+        // --- ODOMETRY COMPONENTS ---
+        std::unique_ptr<Odometry> odom;
+        std::unique_ptr<pros::Task> odom_task;
+
         /**
          * @brief Internal filter for deadbands and polynomial curves.
          */
         int apply_filters(int input);    
+
+        /**
+         * @brief The infinite loop that calculates position.
+         */
+        void odom_loop();
+
+        /**
+         * @brief A static "trampoline" function required by PROS to launch class methods as tasks.
+         */
+        static void odom_trampoline(void* context);
 
     public:
         /**

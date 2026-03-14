@@ -1,92 +1,49 @@
 #include "main.h"
 #include "mylib/chassis.hpp"
-/**
- * A callback function for LLEMU's center button.
- *
- * When this callback is fired, it will toggle line 2 of the LCD text between
- * "I was pressed!" and nothing.
- */
-mylib::Chassis robot({1, -2, 3}, {4, -5, 6});
 
-void on_center_button() {
-	static bool pressed = false;
-	pressed = !pressed;
-	if (pressed) {
-		pros::lcd::set_text(2, "I was pressed!");
-	} else {
-		pros::lcd::clear_line(2);
-	}
-}
+// 1. HARDWARE & PID SETUP
+// Initialize the config with placeholder motor ports and null sensor ports
+mylib::ChassisConfig config = {
+    {1, 2, 3},       // left_motors
+    {-4, -5, -6},    // right_motors
+    0,               // imu_port (0 = not installed)
+    0,               // vertical_wheel_port
+    0,               // horizontal_wheel_port
+    0                // distance_sensor_port
+};
 
-/**
- * Runs initialization code. This occurs as soon as the program is started.
- *
- * All other competition modes are blocked by initialize; it is recommended
- * to keep execution time for this mode under a few seconds.
- */
+// Initialize PID constants with basic values
+mylib::PIDConstants drive_pid = {0.5f, 0.0f, 0.1f};
+mylib::PIDConstants turn_pid = {0.4f, 0.0f, 0.05f};
+
+// 2. CHASSIS INSTANCE (Correct 3-argument call)
+mylib::Chassis chassis(config, drive_pid, turn_pid);
+
 void initialize() {
-	pros::lcd::initialize();
-	pros::lcd::set_text(1, "Hello PROS User!");
-
-	pros::lcd::register_btn1_cb(on_center_button);
+    // Basic screen output to verify code is running
+    pros::lcd::initialize();
+    pros::lcd::set_text(1, "Vex U System: Ready");
+    
+    // Set baseline drive feel
+    chassis.set_joystick_curves(0.3f, 5);
 }
 
-/**
- * Runs while the robot is in the disabled state of Field Management System or
- * the VEX Competition Switch, following either autonomous or opcontrol. When
- * the robot is enabled, this task will exit.
- */
 void disabled() {}
 
-/**
- * Runs after initialize(), and before autonomous when connected to the Field
- * Management System or the VEX Competition Switch. This is intended for
- * competition-specific initialization routines, such as an autonomous selector
- * on the LCD.
- *
- * This task will exit when the robot is enabled and autonomous or opcontrol
- * starts.
- */
 void competition_initialize() {}
 
-/**
- * Runs the user autonomous code. This function will be started in its own task
- * with the default priority and stack size whenever the robot is enabled via
- * the Field Management System or the VEX Competition Switch in the autonomous
- * mode. Alternatively, this function may be called in initialize or opcontrol
- * for non-competition testing purposes.
- *
- * If the robot is disabled or communications is lost, the autonomous task
- * will be stopped. Re-enabling the robot will restart the task, not re-start it
- * from where it left off.
- */
 void autonomous() {}
 
-/**
- * Runs the operator control code. This function will be started in its own task
- * with the default priority and stack size whenever the robot is enabled via
- * the Field Management System or the VEX Competition Switch in the operator
- * control mode.
- *
- * If no competition control is connected, this function will run immediately
- * following initialize().
- *
- * If the robot is disabled or communications is lost, the
- * operator control task will be stopped. Re-enabling the robot will restart the
- * task, not resume it from where it left off.
- */
 void opcontrol() {
-	pros::Controller master(pros::E_CONTROLLER_MASTER);
-	pros::MotorGroup left_mg({1, -2, 3});    // Creates a motor group with forwards ports 1 & 3 and reversed port 2
-	pros::MotorGroup right_mg({-4, 5, -6});  // Creates a motor group with forwards port 5 and reversed ports 4 & 6
+    pros::Controller master(pros::E_CONTROLLER_MASTER);
 
+    while (true) {
+        // Standard Arcade Drive
+        int throttle = master.get_analog(ANALOG_LEFT_Y);
+        int turn = master.get_analog(ANALOG_RIGHT_X);
 
-	while (true) {
-		int y = pros::c::controller_get_analog(pros::E_CONTROLLER_MASTER, pros::E_CONTROLLER_ANALOG_LEFT_Y);
-        int x = pros::c::controller_get_analog(pros::E_CONTROLLER_MASTER, pros::E_CONTROLLER_ANALOG_RIGHT_X);
+        chassis.arcade(throttle, turn);
 
-        robot.arcade(y, x);
-
-        pros::delay(20);
-	}
+        pros::delay(10); // Required task delay
+    }
 }
