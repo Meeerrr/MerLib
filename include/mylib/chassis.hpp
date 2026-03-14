@@ -2,7 +2,7 @@
 #include "api.h"
 #include <vector>
 #include <cstdint>
-#include <memory> //safe memory.
+#include <memory>
 
 namespace mylib {
 
@@ -30,44 +30,46 @@ namespace mylib {
 
     class Chassis {
     private:
-        // --- Core Hardware (Always Required) ---
+        // Core Hardware
         pros::MotorGroup left_motors;
         pros::MotorGroup right_motors;
 
-        // --- Optional Hardware (Smart Pointers) ---
+        // Optional Hardware (Smart Pointers for memory safety)
         std::unique_ptr<pros::Imu> imu;
         std::unique_ptr<pros::Rotation> vertical_encoder;
         std::unique_ptr<pros::Rotation> horizontal_encoder;
         std::unique_ptr<pros::Distance> distance_sensor;
 
-        // --- Controller Configurations ---
+        // Controller Configurations
         PIDConstants drive_pid;
         PIDConstants turn_pid;
 
+        // Enhanced driver control parameters
+        float active_curve = 0.0f;  
+        int active_deadband = 5;   
+
+        /**
+         * @brief Internal filter for deadbands and polynomial curves.
+         */
+        int apply_filters(int input);    
+
     public:
         /**
-         * @brief UNIVERSAL CONSTRUCTOR
-         * Handles 6 or 8 motors automatically and builds optional sensors dynamically.
-         * * @param hw_config The hardware port configuration struct.
-         * @param drive_consts PID constants for linear movement.
-         * @param turn_consts PID constants for rotational movement.
+         * @brief Universal constructor for dynamic motor and sensor setup.
          */
         Chassis(const ChassisConfig& hw_config, 
                 const PIDConstants& drive_consts,
                 const PIDConstants& turn_consts);
 
-        /**
-         * @brief Standard destructor safely handled by unique_ptrs.
-         */
         ~Chassis() = default;
 
-        // --- DRIVER CONTROL ---
+        // Driver Control
         void arcade(int throttle, int turn);
+        void set_joystick_curves(float curve_amount, int deadband_amount);
 
-        // --- AUTONOMOUS MOVEMENT ---
+        // Autonomous Movement Placeholders
         void drive_distance(float target_inches);
         void turn_to_angle(float target_degrees);
     };
-    
 
 } // namespace mylib
