@@ -1,23 +1,47 @@
-#include "mylib/chassis.hpp"
+#include "mylib/chassis.hpp" // Adjust this path if your folder structure is different
 
 namespace mylib {
 
-    // Constructor Implementation
-    Chassis::Chassis(std::initializer_list<std::int8_t> leftPorts, std::initializer_list<std::int8_t> rightPorts) 
-        : leftMotors(leftPorts), rightMotors(rightPorts) {
+    // --- CONSTRUCTOR IMPLEMENTATION ---
+    Chassis::Chassis(const ChassisConfig& config, 
+                     const PIDConstants& drive_consts,
+                     const PIDConstants& turn_consts)
+        // 1. The Initializer List (Fast Initialization)
+        : left_motors(config.left_motors),
+          right_motors(config.right_motors),
+          drive_pid(drive_consts),
+          turn_pid(turn_consts) 
+    {
+        // 2. Dynamic Sensor Allocation (Safe Initialization)
+        // Only build the sensor in memory if a valid port (> 0) was provided
         
-        // strict configuration: Set brake modes automatically
-        leftMotors.set_brake_mode(pros::E_MOTOR_BRAKE_COAST);
-        rightMotors.set_brake_mode(pros::E_MOTOR_BRAKE_COAST);
+        if (config.imu_port != 0) {
+            imu = std::make_unique<pros::Imu>(config.imu_port);
+        }
+        
+        if (config.vertical_wheel_port != 0) {
+            vertical_encoder = std::make_unique<pros::Rotation>(config.vertical_wheel_port);
+        }
+        
+        if (config.horizontal_wheel_port != 0) {
+            horizontal_encoder = std::make_unique<pros::Rotation>(config.horizontal_wheel_port);
+        }
+        
+        if (config.distance_sensor_port != 0) {
+            distance_sensor = std::make_unique<pros::Distance>(config.distance_sensor_port);
+        }
     }
 
-    // Arcade Drive Implementation
-    void Chassis::arcade(int forward, int turn) {
-        // Simple arcade math
-        leftMotors.move(forward + turn);
-        rightMotors.move(forward - turn);
-    }
+    // --- DRIVER CONTROL IMPLEMENTATION ---
+        void Chassis::arcade(int throttle, int turn) {
+            // 1. The Arcade Math
+            int left_power = throttle + turn;
+            int right_power = throttle - turn;
 
-    
+            // 2. Command the Motors
+            left_motors.move(left_power);
+            right_motors.move(right_power);
+        }
 
-}
+} // namespace mylib
+
