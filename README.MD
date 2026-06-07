@@ -1,6 +1,6 @@
 # VEX Robotics Project
 
-This repository houses a custom C++ firmware architecture I developed for VEX Robotics competitions. This codebase provides a high-performance framework for robotic control and has been utilized by Team 11017Y for their competition season.
+This repository houses a custom C++ firmware architecture developed for VEX Robotics competitions. This codebase provides a high-performance framework for robotic control and has been utilized by Team 11017Y for their competition season.
 
 ## Overview
 
